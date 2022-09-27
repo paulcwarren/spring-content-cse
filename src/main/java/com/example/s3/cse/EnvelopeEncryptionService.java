@@ -36,27 +36,25 @@ public class EnvelopeEncryptionService {
         this.vaultOperations = vaultOperations;
     }
 
-    private CipherOutputStream encryptMessage(OutputStream os, final SecretKey dataKey) throws NoSuchPaddingException, NoSuchAlgorithmException, BadPaddingException, IllegalBlockSizeException, InvalidKeyException {
+    private CipherInputStream encryptMessage(InputStream is, final SecretKey dataKey) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException {
         SecretKeySpec key = new SecretKeySpec(dataKey.getEncoded(), AES);
         Cipher cipher = Cipher.getInstance(AES);
         cipher.init(Cipher.ENCRYPT_MODE, key);
 
-//        OutputStream encodingStream = Base64.getEncoder().wrap(os);
-
-        CipherOutputStream cos = new CipherOutputStream(/*encodingStream*/os, cipher);
-        return cos;
+        CipherInputStream cis = new CipherInputStream(/*encodingStream*/is, cipher);
+        return cis;
     }
 
-    public Pair<CipherOutputStream, byte[]> encrypt(OutputStream os) {
+    public Pair<CipherInputStream, byte[]> encrypt(InputStream is) {
         try {
             SecretKey key = generateDataKey();
 
-            // use transit to get ciphertext
+            // use vault to get ciphertext
             VaultTransitOperations transit = vaultOperations.opsForTransit();
             String base64Encoded = Base64.getEncoder().encodeToString(key.getEncoded());
             String ciphertext = transit.encrypt("test", base64Encoded);
 
-            return Pair.of(encryptMessage(os, key), ciphertext.getBytes("UTF-8"));
+            return Pair.of(encryptMessage(is, key), ciphertext.getBytes("UTF-8"));
         } catch (Exception e) {
             throw new RuntimeException("unable to encrypt", e);
         }
@@ -66,15 +64,11 @@ public class EnvelopeEncryptionService {
         return KEY_GENERATOR.generateKey();
     }
 
-    private CipherInputStream decrypt3(final SecretKeySpec secretKeySpec, InputStream is) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException, IOException {
+    private CipherInputStream decryptInputStream(final SecretKeySpec secretKeySpec, InputStream is) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, BadPaddingException, IllegalBlockSizeException, IOException {
         Cipher cipher = Cipher.getInstance(AES);
         cipher.init(Cipher.DECRYPT_MODE, secretKeySpec);
-
-//        InputStream decodingStream = Base64.getDecoder().wrap(is);
-//        InputStream decodingStream = new Base64InputStream(is, false, -1, new byte[] {}, CodecPolicy.LENIENT);
-
-        CipherInputStream cos = new CipherInputStream(/*decodingStream*/is, cipher);
-        return cos;
+        CipherInputStream cis = new CipherInputStream(is, cipher);
+        return cis;
     }
 
     private SecretKeySpec decryptKey(byte[] encryptedKey) {
@@ -86,10 +80,10 @@ public class EnvelopeEncryptionService {
         return key;
     }
 
-    public CipherInputStream decrypt2(byte[] ecryptedKey, InputStream is) {
+    public CipherInputStream decrypt(byte[] ecryptedKey, InputStream is) {
         try {
             SecretKeySpec key = decryptKey(ecryptedKey);
-            return decrypt3(key, is);
+            return decryptInputStream(key, is);
         } catch (Exception e) {
             throw new RuntimeException("unable to decrypt", e);
         }
