@@ -8,6 +8,7 @@ import org.springframework.vault.authentication.ClientAuthentication;
 import org.springframework.vault.authentication.TokenAuthentication;
 import org.springframework.vault.client.VaultEndpoint;
 import org.springframework.vault.config.AbstractVaultConfiguration;
+import org.springframework.vault.core.VaultOperations;
 
 @SpringBootApplication
 public class S3CseApplication {
@@ -18,15 +19,6 @@ public class S3CseApplication {
 
 	@Configuration
 	public static class Config extends AbstractVaultConfiguration {
-
-//	    @Bean
-//	    public KmsClient kmsClient() {
-//	        AwsCredentials creds = AwsBasicCredentials.create(System.getenv("AWS_ACCESS_KEY_ID"), System.getenv("AWS_SECRET_KEY"));
-//	        AwsCredentialsProvider credsProvider = StaticCredentialsProvider.create(creds);
-//	        return KmsClient.builder()
-//	                .credentialsProvider(credsProvider)
-//	                .build();
-//	    }
 
 	    @Override
 	    public VaultEndpoint vaultEndpoint() {
@@ -44,11 +36,10 @@ public class S3CseApplication {
 	        return new TokenAuthentication("my-root-token");
 	    }
 
-//        @Bean
-//        EnvelopeEncryptionService encrypter(/*KmsClient kmsClient*/) {
-//            return new EnvelopeEncryptionService(/*kmsClient*/null);
-//        }
-
+        @Bean
+        EnvelopeEncryptionService encrypter(VaultOperations vaultOperations) {
+            return new EnvelopeEncryptionService(vaultOperations);
+        }
         @Bean
         ClientSideEncryptionEventHandler eventHandler() {
             return new ClientSideEncryptionEventHandler();
