@@ -29,7 +29,7 @@ public class File {
 
     private String name;
 
-//    @JsonIgnore
+    @JsonIgnore
     private byte[] contentKey;
 
 	@ContentId private UUID contentId;
