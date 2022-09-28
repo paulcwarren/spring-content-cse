@@ -2,6 +2,7 @@ package com.example.s3.cse;
 
 import com.github.paulcwarren.ginkgo4j.Ginkgo4jSpringRunner;
 import com.jayway.restassured.RestAssured;
+import com.jayway.restassured.response.Response;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpStatus;
 import org.hamcrest.Matchers;
@@ -102,6 +103,20 @@ public class S3CseApplicationTests {
 						.assertThat()
 						.contentType(Matchers.startsWith("text/plain"))
 						.body(Matchers.equalTo("Hello Client-side encryption World!"));
+				});
+				It("should handle byte-range requests", () -> {
+					Response r =
+						given()
+							.header("accept", "text/plain")
+							.header("range", "bytes=18-27")
+							.get("/files/" + f.getId() + "/content")
+							.then()
+							.statusCode(HttpStatus.SC_PARTIAL_CONTENT)
+							.assertThat()
+							.contentType(Matchers.startsWith("text/plain"))
+							.and().extract().response();
+
+					assertThat(r.asString(), is("encryption"));
 				});
 			});
 		});

@@ -13,7 +13,9 @@ import org.springframework.data.util.Pair;
 
 import javax.crypto.CipherInputStream;
 import javax.crypto.KeyGenerator;
+import java.io.FilterInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 
@@ -52,8 +54,44 @@ public class ClientSideEncryptionEventHandler {
 
         if (r != null) {
             CipherInputStream unencryptedStream = encrypter.decrypt(((File)event.getSource()).getContentKey(), r.getInputStream());
-            Resource ir = new InputStreamResource(unencryptedStream);
+            Resource ir = new InputStreamResource(new SkipInputStream(unencryptedStream));
             event.setResult(ir);
         }
+    }
+
+    // CipherInputStream skip does not work.  This wraps a cipherinputstream purely to override the skip with a
+    // working version
+    public class SkipInputStream extends FilterInputStream
+    {
+        private static final int MAX_SKIP_BUFFER_SIZE = 2048;
+
+        protected SkipInputStream (InputStream in)
+        {
+            super(in);
+        }
+
+        public long skip(long n)
+                throws IOException
+        {
+            long remaining = n;
+            int nr;
+
+            if (n <= 0) {
+                return 0;
+            }
+
+            int size = (int)Math.min(MAX_SKIP_BUFFER_SIZE, remaining);
+            byte[] skipBuffer = new byte[size];
+            while (remaining > 0) {
+                nr = in.read(skipBuffer, 0, (int)Math.min(size, remaining));
+                if (nr < 0) {
+                    break;
+                }
+                remaining -= nr;
+            }
+
+            return n - remaining;
+        }
+
     }
 }
