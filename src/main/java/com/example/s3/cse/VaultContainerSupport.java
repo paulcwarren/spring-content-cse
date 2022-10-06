@@ -12,8 +12,7 @@ public class VaultContainerSupport {
             vaultContainer = new VaultContainer<>()
                     .withVaultToken("my-root-token")
                     .withVaultPort(8200)
-                    .withSecretInVault("secret/testing", "top_secret=password1","db_password=dbpassword1")
-                    .withInitCommand("secrets enable transit", "write -f transit/keys/test");
+                    .withInitCommand("secrets enable transit");
 
             vaultContainer.start();
         }

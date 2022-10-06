@@ -11,17 +11,16 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.vault.core.VaultOperations;
+import org.springframework.vault.core.VaultTransitOperations;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import static com.github.paulcwarren.ginkgo4j.Ginkgo4jDSL.*;
 import static com.jayway.restassured.RestAssured.given;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -39,13 +38,19 @@ public class S3CseApplicationTests {
 	@Autowired
 	private S3Client s3;
 
+	@Autowired
+	private EnvelopeEncryptionService encrypter;
+
+	@Autowired
+	private VaultOperations vaultOperations;
+
 	@LocalServerPort
 	int port;
 
 	private File f;
 
 	{
-		Describe("S3CseApplicationTests", () -> {
+		Describe("Client-side encryption", () -> {
 			BeforeEach(() -> {
 				RestAssured.port = port;
 
@@ -64,12 +69,14 @@ public class S3CseApplicationTests {
 						.build();
 
 				try {
-					DeleteObjectsRequest multiObjectDeleteRequest = DeleteObjectsRequest.builder()
-							.bucket(System.getenv("AWS_BUCKET"))
-							.delete(del)
-							.build();
+					if (del.objects().size() > 0) {
+						DeleteObjectsRequest multiObjectDeleteRequest = DeleteObjectsRequest.builder()
+								.bucket(System.getenv("AWS_BUCKET"))
+								.delete(del)
+								.build();
 
-					s3.deleteObjects(multiObjectDeleteRequest);
+						s3.deleteObjects(multiObjectDeleteRequest);
+					}
 				} catch (S3Exception e) {
 					System.err.println(e.awsErrorDetails().errorMessage());
 					fail();
@@ -117,6 +124,39 @@ public class S3CseApplicationTests {
 							.and().extract().response();
 
 					assertThat(r.asString(), is("encryption"));
+				});
+				Context("when the keyring is rotated", () -> {
+					BeforeEach(() -> {
+						encrypter.rotate();
+					});
+					It("should not change the stored content key", () -> {
+						f = repo.findById(f.getId()).get();
+
+						assertThat(new String(f.getContentKey()), startsWith("vault:v1"));
+					});
+					It("should still retrieve content decrypted", () -> {
+						given()
+								.header("accept", "text/plain")
+								.get("/files/" + f.getId() + "/content")
+								.then()
+								.statusCode(HttpStatus.SC_OK)
+								.assertThat()
+								.contentType(Matchers.startsWith("text/plain"))
+								.body(Matchers.equalTo("Hello Client-side encryption World!"));
+					});
+					It("should update the content key version when next stored", () -> {
+						given()
+								.contentType("text/plain")
+								.content("Hello Client-side encryption World!")
+								.when()
+								.post("/files/" + f.getId() + "/content")
+								.then()
+								.statusCode(HttpStatus.SC_OK);
+
+						f = repo.findById(f.getId()).get();
+						assertThat(new String(f.getContentKey()), startsWith("vault:"));
+						assertThat(new String(f.getContentKey()), not(startsWith("vault:v1")));
+					});
 				});
 			});
 		});

@@ -44,7 +44,7 @@ public class ClientSideEncryptionEventHandler {
 
         Pair<CipherInputStream, byte[]> encryptionContext = encrypter.encrypt(event.getIs());
         ((File)event.getSource()).setContentKey(encryptionContext.getSecond());
-        event.setReplacementInputStream(encryptionContext.getFirst());
+        event.setInputStream(encryptionContext.getFirst());
     }
 
     @HandleAfterGetResource

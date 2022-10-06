@@ -9,13 +9,16 @@ import java.util.Base64;
 import javax.crypto.*;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.data.util.Pair;
 import org.springframework.vault.core.VaultOperations;
 import org.springframework.vault.core.VaultTransitOperations;
 
-public class EnvelopeEncryptionService {
+public class EnvelopeEncryptionService implements InitializingBean {
 
     private static KeyGenerator KEY_GENERATOR;
+
+    private static final String KEYRING_NAME = "shared-key";
 
     static {
         // Create an encryption key.
@@ -41,7 +44,7 @@ public class EnvelopeEncryptionService {
         Cipher cipher = Cipher.getInstance(AES);
         cipher.init(Cipher.ENCRYPT_MODE, key);
 
-        CipherInputStream cis = new CipherInputStream(/*encodingStream*/is, cipher);
+        CipherInputStream cis = new CipherInputStream(is, cipher);
         return cis;
     }
 
@@ -52,7 +55,7 @@ public class EnvelopeEncryptionService {
             // use vault to get ciphertext
             VaultTransitOperations transit = vaultOperations.opsForTransit();
             String base64Encoded = Base64.getEncoder().encodeToString(key.getEncoded());
-            String ciphertext = transit.encrypt("test", base64Encoded);
+            String ciphertext = transit.encrypt(KEYRING_NAME, base64Encoded);
 
             return Pair.of(encryptMessage(is, key), ciphertext.getBytes("UTF-8"));
         } catch (Exception e) {
@@ -73,7 +76,7 @@ public class EnvelopeEncryptionService {
 
     private SecretKeySpec decryptKey(byte[] encryptedKey) {
         VaultTransitOperations transit = vaultOperations.opsForTransit();
-        String decryptedBase64Key = transit.decrypt("test", new String(encryptedKey));
+        String decryptedBase64Key = transit.decrypt(KEYRING_NAME, new String(encryptedKey));
         byte[] keyBytes = Base64.getDecoder().decode(decryptedBase64Key);
 
         SecretKeySpec key = new SecretKeySpec(keyBytes, AES);
@@ -87,5 +90,15 @@ public class EnvelopeEncryptionService {
         } catch (Exception e) {
             throw new RuntimeException("unable to decrypt", e);
         }
+    }
+
+    public void rotate() {
+        VaultTransitOperations transit = vaultOperations.opsForTransit();
+        transit.rotate(KEYRING_NAME);
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        vaultOperations.opsForTransit().createKey(KEYRING_NAME);
     }
 }
