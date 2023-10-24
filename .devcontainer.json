@@ -20,7 +20,15 @@
         //Install docker cli (needed to run commands like `docker login`)
         "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
     },
-    "otherPortsAttributes": {
-        "onAutoForward": "silent"
-    }
+
+    // "otherPortsAttributes": {
+    //     "onAutoForward": "silent"
+    // }
+    "initializeCommand": "echo initializeCommand && sleep 5",
+    "onCreateCommand": "echo onCreateCommand && sleep 5",
+    "updateContentCommand": "echo updateContentCommand && sleep 5",
+    "postCreateCommand": "echo postCreateCommand && sleep 5",
+    "postStartCommand": "echo postStartCommand && sleep 5",
+    "postAttachCommand": "echo postAttachCommand && sleep 5"
+
 }
