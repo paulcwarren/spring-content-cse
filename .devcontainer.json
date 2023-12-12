@@ -7,7 +7,7 @@
         // Installs Java runtime and build tools
         "ghcr.io/devcontainers/features/java:1": {
             "version": "17" // <-- based on javaVersion selected in accelerator
-            ,"installGradle": true // <-- based on buildTool and includeBuildToolWrapper choices in accelerator
+            ,"installGradle": false // <-- based on buildTool and includeBuildToolWrapper choices in accelerator
             ,"installMaven": true // <-- based on buildTool and includeBuildToolWrapper choices in accelerator
         },
         // Installs clis needed to connect to commonly used cloud providers
